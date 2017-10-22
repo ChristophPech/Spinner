@@ -42,13 +42,14 @@ void setup() {
     bLastCLK=digitalRead(PinCLK);
 
 
-    //Timer1.initialize(100);  // 10 us = 100 kHz
-    //Timer1.attachInterrupt(stepperAdvance);
+    Timer1.initialize(100);  // 10 us = 100 kHz
+    Timer1.attachInterrupt(stepperAdvance);
     Serial_println("init.done");
 }
 
 unsigned int cnt=0;
-int iRPM=100;
+int iRPM=0;
+int iRPMStop=0;
 unsigned long iStepCount=0;
 
 /*void isr ()  {                    // Interrupt service routine is executed when a HIGH to LOW transition is detected on CLK
@@ -71,8 +72,11 @@ void loop() {
   digitalWrite(LED_BUILTIN, ((cnt/10)&1)!=0);
 
   const int iMin=30;
-  analogWrite(PinVR,iMin + (long(iRPM)*(255-iMin)/1000));
-  digitalWrite(PinEL, iRPM>0);
+  int iR=iRPM>=0?iRPM:-iRPM;
+  
+  analogWrite(PinVR,iMin + (long(iR)*(255-iMin)/1000));
+  digitalWrite(PinEL, iRPM!=0);
+  digitalWrite(PinZF, iRPM>0);
 
   if(iRPM<1) return;
   delay(10);
@@ -117,17 +121,30 @@ void stepperAdvance() {
     if(bDT!=bCLK) {
       iRPM+=20;
       if(iRPM>1000) iRPM=1000;
+      iRPMStop=0;
     } else {
       iRPM-=20;
-      if(iRPM<0) iRPM=0;
+      if(iRPM<-1000) iRPM=-1000;
+      iRPMStop=0;
     }
  }
   
   if (!(digitalRead(PinSW))) {
     //Serial_print(iClick);
     iClick++;
-    if(iClick>7000) {iStepCount=0;};
-    iRPM=0;
+    if(iClick>7000) {iStepCount=0;iRPMStop=0;};
+
+    if(iClick==10)
+    {
+      if(iRPMStop!=0)
+      {
+        iRPM=iRPMStop;
+        iRPMStop=0;
+      } else {
+        iRPMStop=iRPM;
+        iRPM=0;
+      }
+    }
   } else {iClick=0;}
 
 
